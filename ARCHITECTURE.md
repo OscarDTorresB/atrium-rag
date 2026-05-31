@@ -53,7 +53,7 @@ embeddings are closest to the question's embedding. Those embeddings live in a
 | **AWS Lambda + Function URL** | Serverless host for the API | No servers to manage; Function URLs support response streaming |
 | **S3 (documents bucket)** | Stores raw uploaded files + per-document manifests | Cheap durable object storage; presigned URLs let clients upload directly |
 | **Amazon Bedrock — Titan Embeddings v2** | Turns text into 1024-dim embeddings | Managed embeddings, no model hosting |
-| **Amazon Bedrock — Claude 3.5 Haiku** | Generates the final answer from question + context | Managed LLM; Haiku is fast/cheap for a POC |
+| **Amazon Bedrock — Claude Haiku 4.5** | Generates the final answer from question + context | Managed LLM; Haiku is fast/cheap for a POC (invoked via the `us.` cross-region inference profile) |
 | **S3 Vectors** | Stores + similarity-searches chunk embeddings | AWS-native vector store, serverless, very cheap vs. OpenSearch/Aurora |
 | **LangChain.js** | Text splitting + Bedrock embedding/chat clients | Saves us from hand-rolling chunking and Bedrock request plumbing |
 | **AWS CDK** | Provisions all infrastructure as code | One-command, reproducible deploys |
@@ -121,8 +121,8 @@ On Lambda this requires the Function URL `InvokeMode` to be `RESPONSE_STREAM`.
 ### S3 documents bucket layout
 ```
 docs/<documentId>/<originalFilename>     the raw uploaded file
-docs/<documentId>/manifest.json          { documentId, filename, contentType,
-                                            chunkKeys: [...], ingestedAt }
+docs/<documentId>/manifest.json          { documentId, filename, chunkKeys: [...],
+                                            chunkCount, ingestedAt }
 ```
 
 ### S3 Vectors index

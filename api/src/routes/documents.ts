@@ -12,17 +12,30 @@ import { deleteVectors, putVectors } from '../lib/vectors'
 
 export const documents = new Hono()
 
+/** Reduce a client-supplied filename to a safe basename (no path traversal). */
+function safeFilename (filename: string): string {
+  return filename.split(/[\\/]/).pop()!.replace(/^\.+/, '')
+}
+
 documents.post('/', async (c) => {
   const { filename, contentType } = await c.req.json<{ filename?: string; contentType?: string }>()
 
   if (!filename) {
     return c.json({ error: 'filename is required' }, 400)
   }
+  // This POC ingests plain text only; reject anything that isn't a text/* type.
+  if (contentType && !contentType.startsWith('text/')) {
+    return c.json({ error: 'only text/* content types are supported' }, 400)
+  }
+  const name = safeFilename(filename)
+  if (!name) {
+    return c.json({ error: 'filename is invalid' }, 400)
+  }
 
   // One id per uploaded document; groups the raw file, manifest, and vector chunks.
   const documentId = crypto.randomUUID()
-  const key = keys.object(documentId, filename)
-  const uploadUrl = await presignUpload(key, contentType ?? 'application/octet-stream')
+  const key = keys.object(documentId, name)
+  const uploadUrl = await presignUpload(key, contentType ?? 'text/plain')
 
   return c.json({ documentId, key, uploadUrl })
 })
@@ -46,6 +59,9 @@ documents.post('/:id/ingest', async (c) => {
   }
 
   const embeddings = await embedChunks(chunks)
+  if (embeddings.length !== chunks.length) {
+    return c.json({ error: 'embedding count did not match chunk count; retry ingestion' }, 502)
+  }
   const vectors = chunks.map((chunk, chunkIndex) => ({
     key: `${documentId}#${chunkIndex}`,
     embedding: embeddings[chunkIndex],

@@ -34,7 +34,11 @@ export const config = {
   vectorBucket: required('VECTOR_BUCKET_NAME'),
   vectorIndex: required('VECTOR_INDEX_NAME'),
 
-  /** Bedrock model IDs for embeddings (Titan) and chat generation (Claude). */
+  /**
+   * Bedrock model IDs for embeddings (Titan) and chat generation (Claude).
+   * The chat default is the `us.` cross-region inference profile — Claude Haiku 4.5
+   * rejects on-demand invocation by its bare foundation-model id.
+   */
   embeddingModelId: optional('EMBEDDING_MODEL_ID', 'amazon.titan-embed-text-v2:0'),
-  chatModelId: optional('CHAT_MODEL_ID', 'anthropic.claude-3-5-haiku-20241022-v1:0'),
+  chatModelId: optional('CHAT_MODEL_ID', 'us.anthropic.claude-haiku-4-5-20251001-v1:0'),
 }

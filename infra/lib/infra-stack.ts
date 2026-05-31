@@ -17,6 +17,13 @@ const EMBEDDING_DIMENSION = 1024 // Titan Embeddings v2 default
 // Regions a "us." system-defined inference profile can route requests to.
 const INFERENCE_PROFILE_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2']
 
+/** Read a deploy-time secret from the environment, failing the synth if it is unset. */
+function requiredEnv (name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`Missing required env var for deploy: ${name}`)
+  return value
+}
+
 export class RagApiStack extends Stack {
   constructor (scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props)
@@ -110,7 +117,9 @@ export class RagApiStack extends Stack {
       handler: 'handler',
       runtime: aws_lambda.Runtime.NODEJS_22_X,
       memorySize: 512,
-      timeout: Duration.seconds(30),
+      // Synchronous ingest embeds every chunk via Bedrock; give a larger doc room to
+      // finish. (A production system would move ingestion to an async S3-event Lambda.)
+      timeout: Duration.seconds(120),
       // Bundle everything (incl. the very new @aws-sdk/client-s3vectors) rather than
       // relying on the runtime's bundled SDK, which may not include it yet.
       bundling: { externalModules: [] },
@@ -120,8 +129,10 @@ export class RagApiStack extends Stack {
         VECTOR_INDEX_NAME: vectorIndexName,
         EMBEDDING_MODEL_ID,
         CHAT_MODEL_ID,
+        // Required at deploy time — never ship a default password. For production,
+        // prefer Secrets Manager over a plain Lambda env var.
         BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME ?? 'otorres',
-        BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD ?? 'test_password',
+        BASIC_AUTH_PASSWORD: requiredEnv('BASIC_AUTH_PASSWORD'),
       },
     })
 

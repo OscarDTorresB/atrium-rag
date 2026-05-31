@@ -1,3 +1,9 @@
+/**
+ * The Hono application: middleware + route wiring.
+ *
+ * This module owns no transport details, so the same `app` is shared by both entry
+ * points — `dev.ts` (Bun server, local) and `index.ts` (Lambda handler, prod).
+ */
 import { Hono } from 'hono'
 import { basicAuth } from 'hono/basic-auth'
 import { config } from './lib/config'

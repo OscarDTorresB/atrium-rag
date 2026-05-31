@@ -33,6 +33,11 @@ chat.post('/', async (c) => {
   const queryEmbedding = await embedQuery(message)
   const matches = await queryVectors(queryEmbedding, topK ?? DEFAULT_TOP_K, documentId)
 
+  // A scoped query that finds nothing means the document doesn't exist / isn't ingested.
+  if (matches.length === 0 && documentId) {
+    return c.json({ error: 'no ingested content found for that documentId' }, 404)
+  }
+
   return streamSSE(c, async (stream) => {
     await stream.writeSSE({
       event: 'sources',

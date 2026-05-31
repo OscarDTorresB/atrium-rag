@@ -62,7 +62,8 @@ export async function findUploadedFile (documentId: string): Promise<{ key: stri
 /** Read an object's body as a UTF-8 string. */
 export async function getObjectText (key: string): Promise<string> {
   const res = await s3.send(new GetObjectCommand({ Bucket: config.docsBucket, Key: key }))
-  return res.Body!.transformToString('utf-8')
+  if (!res.Body) throw new Error(`S3 object ${key} returned an empty body`)
+  return res.Body.transformToString('utf-8')
 }
 
 /** Write the per-document manifest. */
@@ -79,7 +80,8 @@ export async function putManifest (documentId: string, manifest: Manifest): Prom
 export async function getManifest (documentId: string): Promise<Manifest | null> {
   try {
     const res = await s3.send(new GetObjectCommand({ Bucket: config.docsBucket, Key: keys.manifest(documentId) }))
-    return JSON.parse(await res.Body!.transformToString('utf-8')) as Manifest
+    if (!res.Body) throw new Error(`manifest for ${documentId} returned an empty body`)
+    return JSON.parse(await res.Body.transformToString('utf-8')) as Manifest
   } catch (err) {
     if (err instanceof Error && err.name === 'NoSuchKey') return null
     throw err
