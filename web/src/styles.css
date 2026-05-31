@@ -203,6 +203,10 @@ input { font-family: inherit; }
   grid-template-columns: 304px 1fr;
 }
 
+/* Mobile-only chrome (the slide-in drawer's top bar + backdrop). Hidden on desktop. */
+.topbar { display: none; }
+.scrim { display: none; }
+
 /* ---------- Sidebar / Library ---------- */
 
 .sidebar {
@@ -319,6 +323,10 @@ input { font-family: inherit; }
 .file-item:hover .file-view, .file-item:hover .file-remove { opacity: 1; }
 .file-view:hover { color: var(--azure); background: var(--azure-tint); }
 .file-remove:hover { color: var(--danger); background: #fbeaea; }
+/* Touch devices have no hover, so always show the per-file actions there. */
+@media (hover: none) {
+  .file-view, .file-remove { opacity: 1; }
+}
 
 .library-empty {
   padding: 18px 22px;
@@ -516,7 +524,85 @@ input { font-family: inherit; }
 }
 .thread::-webkit-scrollbar-thumb { background: var(--line); background-clip: padding-box; }
 
+/* ===================================================================
+   Mobile (≤ 760px) — single column, library becomes a slide-in drawer
+   =================================================================== */
 @media (max-width: 760px) {
-  .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .sidebar { border-right: none; border-bottom: 1px solid var(--line); max-height: 38vh; }
+  /* Use the dynamic viewport height so the composer is never hidden behind
+     iOS Safari's collapsing toolbar (100vh would overflow under it). */
+  .shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* Top bar with the hamburger; respects the notch via the safe-area inset. */
+  .topbar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .wordmark { font-size: 21px; }
+  .topbar .dot { color: var(--azure); }
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-left: -8px;
+    border: none;
+    background: none;
+    color: var(--ink);
+    border-radius: var(--radius);
+  }
+
+  /* Drawer: off-canvas by default, slides in over the chat when open. */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    width: 86%;
+    max-width: 320px;
+    border-right: 1px solid var(--line);
+    padding-top: env(safe-area-inset-top);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(20, 35, 59, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+  .scrim.show { opacity: 1; pointer-events: auto; }
+
+  .chat { flex: 1; min-height: 0; }
+
+  /* Tighter gutters and display type for narrow screens. */
+  .thread { padding-top: 24px; }
+  .thread-inner, .composer, .composer-hint { padding-left: 18px; padding-right: 18px; }
+  .bubble { max-width: 92%; }
+  .welcome { padding: 24px; }
+  .welcome h1 { font-size: 32px; }
+  .welcome p { font-size: 15px; }
+
+  /* 16px floor keeps iOS Safari from auto-zooming when a field is focused, and
+     pad the composer past the home-indicator safe area. */
+  .field input, .composer textarea { font-size: 16px; }
+  .composer-wrap { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }

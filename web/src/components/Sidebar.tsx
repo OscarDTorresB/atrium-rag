@@ -16,7 +16,10 @@ const PHASE_LABEL: Record<Pending['phase'], string> = {
   error: 'Couldn’t add — try again',
 }
 
-export function Sidebar({ onSignOut, onAuthError }: { onSignOut: () => void; onAuthError: () => void }) {
+export function Sidebar(
+  { open, onClose, onSignOut, onAuthError }:
+  { open: boolean; onClose: () => void; onSignOut: () => void; onAuthError: () => void },
+) {
   const [docs, setDocs] = useState<DocumentSummary[]>([])
   const [pending, setPending] = useState<Pending[]>([])
   const [dragging, setDragging] = useState(false)
@@ -54,6 +57,7 @@ export function Sidebar({ onSignOut, onAuthError }: { onSignOut: () => void; onA
   }
 
   async function handleView(doc: DocumentSummary) {
+    onClose()
     // Open the tab synchronously (inside the click) so the async URL fetch that follows
     // isn't treated as a programmatic popup and blocked by the browser.
     const tab = window.open('', '_blank')
@@ -89,7 +93,7 @@ export function Sidebar({ onSignOut, onAuthError }: { onSignOut: () => void; onA
   const isEmpty = docs.length === 0 && pending.length === 0
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="sidebar-head">
         <span className="wordmark">Atrium<span className="dot">.</span></span>
         <button className="signout" onClick={onSignOut}>Sign out</button>
