@@ -5,7 +5,12 @@
  * directly. Each vector's `key` is `"<documentId>#<chunkIndex>"`, and its metadata
  * carries the chunk `text` so a query can build prompt context without re-reading S3.
  */
-import { DeleteVectorsCommand, PutVectorsCommand, QueryVectorsCommand, S3VectorsClient } from '@aws-sdk/client-s3vectors'
+import {
+  DeleteVectorsCommand,
+  PutVectorsCommand,
+  QueryVectorsCommand,
+  S3VectorsClient
+} from '@aws-sdk/client-s3vectors'
 import { config } from './config'
 
 const client = new S3VectorsClient({ region: config.region })
@@ -25,7 +30,7 @@ export interface ChunkVector {
 }
 
 /** Store chunk embeddings, batched to stay within the per-call limit. */
-export async function putVectors (vectors: ChunkVector[]): Promise<void> {
+export async function putVectors(vectors: ChunkVector[]): Promise<void> {
   for (let i = 0; i < vectors.length; i += MAX_BATCH) {
     const batch = vectors.slice(i, i + MAX_BATCH)
     await client.send(new PutVectorsCommand({
@@ -53,7 +58,7 @@ export interface Match {
  * Approximate-nearest-neighbour search for the chunks most similar to a query
  * embedding. Pass `documentId` to scope the search to a single document.
  */
-export async function queryVectors (embedding: number[], topK: number, documentId?: string): Promise<Match[]> {
+export async function queryVectors(embedding: number[], topK: number, documentId?: string): Promise<Match[]> {
   const res = await client.send(new QueryVectorsCommand({
     vectorBucketName: config.vectorBucket,
     indexName: config.vectorIndex,
@@ -78,7 +83,7 @@ export async function queryVectors (embedding: number[], topK: number, documentI
 }
 
 /** Delete vectors by key, batched to stay within the per-call limit. */
-export async function deleteVectors (keys: string[]): Promise<void> {
+export async function deleteVectors(keys: string[]): Promise<void> {
   for (let i = 0; i < keys.length; i += MAX_BATCH) {
     await client.send(new DeleteVectorsCommand({
       vectorBucketName: config.vectorBucket,

@@ -6,14 +6,24 @@
  * The client then PUTs the file bytes directly to `uploadUrl` (an S3 presigned URL).
  */
 import { Hono } from 'hono'
-import { deleteDocumentObjects, findUploadedFile, getManifest, getObjectText, keys, listManifests, presignUpload, putManifest } from '../lib/s3'
+import {
+  deleteDocumentObjects,
+  findUploadedFile,
+  getManifest,
+  getObjectText,
+  keys,
+  listManifests,
+  presignDownload,
+  presignUpload,
+  putManifest
+} from '../lib/s3'
 import { chunkText, embedChunks } from '../lib/rag'
 import { deleteVectors, putVectors } from '../lib/vectors'
 
 export const documents = new Hono()
 
 /** Reduce a client-supplied filename to a safe basename (no path traversal). */
-function safeFilename (filename: string): string {
+function safeFilename(filename: string): string {
   return filename.split(/[\\/]/).pop()!.replace(/^\.+/, '')
 }
 
@@ -91,6 +101,22 @@ documents.get('/', async (c) => {
       ingestedAt: m.ingestedAt,
     })),
   })
+})
+
+/**
+ * Presigned GET URL to view/download a document's original file. The client opens the
+ * returned `url` directly (the docs bucket allows browser GET via CORS).
+ */
+documents.get('/:id/download', async (c) => {
+  const documentId = c.req.param('id')
+
+  const file = await findUploadedFile(documentId)
+  if (!file) {
+    return c.json({ error: 'no file found for this document' }, 404)
+  }
+
+  const url = await presignDownload(file.key, file.filename)
+  return c.json({ url, filename: file.filename })
 })
 
 /**

@@ -3,3 +3,4 @@ allowBuilds:
 packages:
   - 'api'
   - 'infra'
+  - 'web'

@@ -6,6 +6,16 @@ import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from '
 import { Construct } from 'constructs'
 
 /**
+ * Props for the API stack. `webOrigin` is the browser origin the API trusts for CORS —
+ * passed in (the web stack's CloudFront URL) rather than read here, so the two stacks
+ * stay decoupled while the API still allows exactly the frontend that ships with it.
+ * A `CORS_ORIGINS` env var overrides it; absent both, CORS falls back to `*`.
+ */
+export interface RagApiStackProps extends StackProps {
+  webOrigin?: string
+}
+
+/**
  * Models used by the RAG pipeline. Overridable via deploy-time env vars so you can
  * swap to a cheaper/larger model without touching code.
  */
@@ -18,14 +28,14 @@ const EMBEDDING_DIMENSION = 1024 // Titan Embeddings v2 default
 const INFERENCE_PROFILE_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2']
 
 /** Read a deploy-time secret from the environment, failing the synth if it is unset. */
-function requiredEnv (name: string): string {
+function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) throw new Error(`Missing required env var for deploy: ${name}`)
   return value
 }
 
 export class RagApiStack extends Stack {
-  constructor (scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props?: RagApiStackProps) {
     super(scope, id, props)
 
     // ---------------------------------------------------------------------------
@@ -166,6 +176,10 @@ export class RagApiStack extends Stack {
       authType: aws_lambda.FunctionUrlAuthType.NONE,
       invokeMode: aws_lambda.InvokeMode.RESPONSE_STREAM,
     })
+
+    // Lock the API's browser CORS to the frontend origin. Precedence: an explicit
+    // CORS_ORIGINS env var, then the web stack's CloudFront origin (props), else `*`.
+    honoLambda.addEnvironment('CORS_ORIGINS', process.env.CORS_ORIGINS ?? props?.webOrigin ?? '*')
 
     new CfnOutput(this, 'ApiUrl', { value: fnUrl.url })
     new CfnOutput(this, 'DocsBucketName', { value: docsBucket.bucketName })

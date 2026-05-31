@@ -7,13 +7,13 @@
  * come from `api/.env` (auto-loaded by Bun).
  */
 
-function required (name: string): string {
+function required(name: string): string {
   const value = process.env[name]
   if (!value) throw new Error(`Missing required env var: ${name}`)
   return value
 }
 
-function optional (name: string, fallback: string): string {
+function optional(name: string, fallback: string): string {
   return process.env[name] ?? fallback
 }
 
@@ -26,6 +26,15 @@ export const config = {
     username: required('BASIC_AUTH_USERNAME'),
     password: required('BASIC_AUTH_PASSWORD'),
   },
+
+  /**
+   * Origins allowed to call the API from a browser. The web frontend runs on a
+   * different origin (Vite locally, CloudFront in prod), so without CORS the browser
+   * blocks every request. Comma-separated list; `*` allows any. Safe to default to `*`
+   * here because auth is a Basic `Authorization` header, not a cookie (no credentials
+   * mode), so `*` does not expose anything a caller couldn't already reach with creds.
+   */
+  corsOrigins: optional('CORS_ORIGINS', '*'),
 
   /** S3 bucket holding raw uploaded files + per-document manifests. */
   docsBucket: required('DOCS_BUCKET_NAME'),

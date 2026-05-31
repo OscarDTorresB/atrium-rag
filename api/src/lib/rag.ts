@@ -22,17 +22,17 @@ const splitter = new RecursiveCharacterTextSplitter({
 })
 
 /** Split raw document text into overlapping chunks. */
-export function chunkText (text: string): Promise<string[]> {
+export function chunkText(text: string): Promise<string[]> {
   return splitter.splitText(text)
 }
 
 /** Embed many chunks at once (ingestion). */
-export function embedChunks (chunks: string[]): Promise<number[][]> {
+export function embedChunks(chunks: string[]): Promise<number[][]> {
   return embeddings.embedDocuments(chunks)
 }
 
 /** Embed a single query string (chat retrieval). */
-export function embedQuery (text: string): Promise<number[]> {
+export function embedQuery(text: string): Promise<number[]> {
   return embeddings.embedQuery(text)
 }
 
@@ -46,7 +46,7 @@ const chat = new ChatBedrockConverse({
  * Stream a grounded answer token-by-token. The model is instructed to answer only
  * from the retrieved `contexts`, so it stays anchored to the user's documents.
  */
-export async function* streamAnswer (question: string, contexts: string[]): AsyncGenerator<string> {
+export async function* streamAnswer(question: string, contexts: string[]): AsyncGenerator<string> {
   const contextBlock = contexts.map((text, i) => `[${i + 1}] ${text}`).join('\n\n')
   const system = new SystemMessage(
     'You are a helpful assistant. Answer the question using ONLY the context below. ' +

@@ -14,14 +14,19 @@ answers grounded in those files.
 
 ```
 api/    Hono app — runs on Bun locally and AWS Lambda in prod
-infra/  AWS CDK stack (S3, S3 Vectors, Lambda, IAM, Function URL)
+web/    React (Vite) frontend "Atrium" — static site behind CloudFront in prod
+infra/  AWS CDK — two stacks: RagApiStack (backend) + RagWebStack (frontend hosting)
 ```
 
 - `api/src/app.ts` — the Hono app (middleware + route mounting). Shared by both entries.
 - `api/src/dev.ts` — Bun local entry · `api/src/index.ts` — Lambda entry (`streamHandle`).
 - `api/src/routes/{documents,chat}.ts` — HTTP routes.
 - `api/src/lib/{config,s3,vectors,rag}.ts` — env, S3, S3 Vectors SDK wrapper, LangChain.
-- `infra/lib/infra-stack.ts` — all infrastructure · `infra/bin/infra.ts` — CDK entry.
+- `web/src/` — React app (see `web/README.md`); `lib/api.ts` is the typed API client.
+- `infra/lib/api-stack.ts` — backend (S3, S3 Vectors, Lambda, IAM, Function URL).
+- `infra/lib/web-stack.ts` — frontend hosting (S3 + CloudFront/OAC + asset deploy).
+- `infra/bin/infra.ts` — CDK entry: deploys `RagWebStack`, then `RagApiStack` (its CORS
+  origin references the web stack's CloudFront URL — one-way, no cycle).
 
 ## Conventions (follow these)
 
@@ -41,8 +46,16 @@ infra/  AWS CDK stack (S3, S3 Vectors, Lambda, IAM, Function URL)
 pnpm install
 pnpm dev                       # Bun server at http://localhost:3000 (loads api/.env)
 pnpm build                     # bundle Lambda handler -> api/dist/index.js
-cd infra && npx cdk deploy --profile dev   # deploy (loads infra/.env via dotenv)
+pnpm --filter @rag/web dev     # Vite frontend at http://localhost:5173 (loads web/.env)
+pnpm --filter @rag/web build   # build the static site -> web/dist (needed before deploy)
+cd infra && npx cdk deploy --all --profile dev   # deploy both stacks (loads infra/.env)
 ```
+
+**Two-stack deploy note:** the frontend bakes `VITE_API_BASE_URL` at build time, so the
+first time round: deploy `--all` (frontend ships pointing at localhost), copy the
+`ApiUrl` output into `web/.env`, `pnpm --filter @rag/web build`, then `cdk deploy
+RagWebStack` again to re-upload `web/dist`. CDK deploys `RagWebStack` before `RagApiStack`
+(the API's `CORS_ORIGINS` references the web stack's CloudFront origin).
 
 - **`api/.env`** — local runtime config (auth, AWS_REGION, AWS_PROFILE, bucket/index
   names, model ids). Copy from `api/.env.example`.
@@ -64,6 +77,7 @@ All routes except `GET /health` require **HTTP Basic Auth** (`BASIC_AUTH_USERNAM
 | POST | `/documents` | `{ filename, contentType }` | `{ documentId, key, uploadUrl }` |
 | POST | `/documents/:id/ingest` | — | `{ documentId, filename, chunks }` |
 | GET | `/documents` | — | `{ documents: [{ documentId, filename, chunkCount, ingestedAt }] }` |
+| GET | `/documents/:id/download` | — | `{ url, filename }` (presigned GET, 5-min TTL) |
 | DELETE | `/documents/:id` | — | `{ deleted, documentId, chunks }` |
 | POST | `/chat` | `{ message, documentId?, topK? }` | SSE stream (see below) |
 
