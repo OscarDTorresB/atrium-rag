@@ -53,3 +53,11 @@ Content-Type: application/json
   "documentId": "{{presign.response.body.documentId}}",
   "topK": 4
 }
+
+### List all ingested documents
+GET {{host}}/documents
+Authorization: {{auth}}
+
+### Delete a document (removes vectors + S3 objects)
+DELETE {{host}}/documents/{{presign.response.body.documentId}}
+Authorization: {{auth}}

@@ -6,9 +6,9 @@
  * The client then PUTs the file bytes directly to `uploadUrl` (an S3 presigned URL).
  */
 import { Hono } from 'hono'
-import { findUploadedFile, getObjectText, keys, presignUpload, putManifest } from '../lib/s3'
+import { deleteDocumentObjects, findUploadedFile, getManifest, getObjectText, keys, listManifests, presignUpload, putManifest } from '../lib/s3'
 import { chunkText, embedChunks } from '../lib/rag'
-import { putVectors } from '../lib/vectors'
+import { deleteVectors, putVectors } from '../lib/vectors'
 
 export const documents = new Hono()
 
@@ -62,4 +62,33 @@ documents.post('/:id/ingest', async (c) => {
   })
 
   return c.json({ documentId, filename: file.filename, chunks: vectors.length })
+})
+
+/** List every ingested document. */
+documents.get('/', async (c) => {
+  const manifests = await listManifests()
+  return c.json({
+    documents: manifests.map((m) => ({
+      documentId: m.documentId,
+      filename: m.filename,
+      chunkCount: m.chunkCount,
+      ingestedAt: m.ingestedAt,
+    })),
+  })
+})
+
+/**
+ * Remove a document from the knowledge base: delete its vectors (via the manifest)
+ * and all of its S3 objects (raw file + manifest).
+ */
+documents.delete('/:id', async (c) => {
+  const documentId = c.req.param('id')
+
+  const manifest = await getManifest(documentId)
+  if (manifest) {
+    await deleteVectors(manifest.chunkKeys)
+  }
+  await deleteDocumentObjects(documentId)
+
+  return c.json({ deleted: true, documentId, chunks: manifest?.chunkCount ?? 0 })
 })

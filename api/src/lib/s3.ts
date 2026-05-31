@@ -5,7 +5,7 @@
  * presigned PUT URLs so clients send bytes straight to S3, bypassing Lambda's
  * ~6MB request-body limit.
  */
-import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client, } from '@aws-sdk/client-s3'
+import { DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client, } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { config } from './config'
 
@@ -73,4 +73,33 @@ export async function putManifest (documentId: string, manifest: Manifest): Prom
     ContentType: 'application/json',
     Body: JSON.stringify(manifest),
   }))
+}
+
+/** Read a document's manifest, or null if it hasn't been ingested. */
+export async function getManifest (documentId: string): Promise<Manifest | null> {
+  try {
+    const res = await s3.send(new GetObjectCommand({ Bucket: config.docsBucket, Key: keys.manifest(documentId) }))
+    return JSON.parse(await res.Body!.transformToString('utf-8')) as Manifest
+  } catch (err) {
+    if (err instanceof Error && err.name === 'NoSuchKey') return null
+    throw err
+  }
+}
+
+/** List every ingested document by reading its manifest. */
+export async function listManifests (): Promise<Manifest[]> {
+  const res = await s3.send(new ListObjectsV2Command({ Bucket: config.docsBucket, Prefix: 'docs/' }))
+  const manifestKeys = res.Contents?.filter((o) => o.Key?.endsWith('/manifest.json')) ?? []
+  return Promise.all(manifestKeys.map(async (o) => {
+    const obj = await s3.send(new GetObjectCommand({ Bucket: config.docsBucket, Key: o.Key! }))
+    return JSON.parse(await obj.Body!.transformToString('utf-8')) as Manifest
+  }))
+}
+
+/** Delete every S3 object belonging to a document (raw file + manifest). */
+export async function deleteDocumentObjects (documentId: string): Promise<void> {
+  const res = await s3.send(new ListObjectsV2Command({ Bucket: config.docsBucket, Prefix: keys.prefix(documentId) }))
+  const objects = res.Contents?.map((o) => ({ Key: o.Key! })) ?? []
+  if (objects.length === 0) return
+  await s3.send(new DeleteObjectsCommand({ Bucket: config.docsBucket, Delete: { Objects: objects } }))
 }

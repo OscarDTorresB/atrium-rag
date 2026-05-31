@@ -5,7 +5,7 @@
  * directly. Each vector's `key` is `"<documentId>#<chunkIndex>"`, and its metadata
  * carries the chunk `text` so a query can build prompt context without re-reading S3.
  */
-import { PutVectorsCommand, QueryVectorsCommand, S3VectorsClient } from '@aws-sdk/client-s3vectors'
+import { DeleteVectorsCommand, PutVectorsCommand, QueryVectorsCommand, S3VectorsClient } from '@aws-sdk/client-s3vectors'
 import { config } from './config'
 
 const client = new S3VectorsClient({ region: config.region })
@@ -75,4 +75,15 @@ export async function queryVectors (embedding: number[], topK: number, documentI
       text: String(meta.text ?? ''),
     }
   })
+}
+
+/** Delete vectors by key, batched to stay within the per-call limit. */
+export async function deleteVectors (keys: string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += MAX_BATCH) {
+    await client.send(new DeleteVectorsCommand({
+      vectorBucketName: config.vectorBucket,
+      indexName: config.vectorIndex,
+      keys: keys.slice(i, i + MAX_BATCH),
+    }))
+  }
 }
