@@ -1,0 +1,16 @@
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+.idea
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+# Build output
+dist/
+lambda.zip
+
+# Local env — copy from .env.example and fill in values
+.env

@@ -1,0 +1,20 @@
+{
+  "name": "rag",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @rag/api dev",
+    "build": "pnpm --filter @rag/api build",
+    "deploy": "pnpm --filter @rag/infra exec npx cdk deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.5.0",
+      "onFail": "download"
+    }
+  }
+}

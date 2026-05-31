@@ -1,0 +1,55 @@
+@host = http://localhost:3000
+@auth = Basic b3RvcnJlczpURVNUX1BBU1NXT1JE
+
+### Health ping (public, no auth)
+GET {{host}}/health
+
+### Auth required — should 401 without credentials
+POST {{host}}/documents
+Content-Type: application/json
+
+{
+  "filename": "hello.txt",
+  "contentType": "text/plain"
+}
+
+### Step 1: request a presigned upload URL
+# @name presign
+POST {{host}}/documents
+Authorization: {{auth}}
+Content-Type: application/json
+
+{
+  "filename": "hello.txt",
+  "contentType": "text/plain"
+}
+
+### Step 2: upload the file directly to S3 using the presigned URL
+PUT {{presign.response.body.uploadUrl}}
+Content-Type: text/plain
+
+Hono makes RAG easy. The capital of demo-land is Honoville.
+
+### Step 3: ingest the uploaded document (chunk -> embed -> store vectors)
+POST {{host}}/documents/{{presign.response.body.documentId}}/ingest
+Authorization: {{auth}}
+
+### Step 4: ask a grounded question (streamed SSE answer)
+POST {{host}}/chat
+Authorization: {{auth}}
+Content-Type: application/json
+
+{
+  "message": "What is the capital of demo-land?"
+}
+
+### Chat scoped to a single document
+POST {{host}}/chat
+Authorization: {{auth}}
+Content-Type: application/json
+
+{
+  "message": "What is the capital of demo-land?",
+  "documentId": "{{presign.response.body.documentId}}",
+  "topK": 4
+}
