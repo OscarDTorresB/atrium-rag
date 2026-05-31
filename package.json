@@ -3,8 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "pnpm --filter @rag/api dev",
-    "build": "pnpm --filter @rag/api build",
+    "dev": "pnpm --parallel \"/^dev:.*/\"",
+    "dev:api": "pnpm --filter @rag/api dev",
+    "dev:web": "pnpm --filter @rag/web dev",
+    "build:web": "pnpm --filter @rag/web build",
     "deploy": "pnpm --filter @rag/infra exec npx cdk deploy"
   },
   "keywords": [],

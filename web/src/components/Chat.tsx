@@ -7,8 +7,9 @@
  */
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { AuthError, streamChat } from '../lib/api'
+import { Markdown } from './Markdown'
 
-type Message = { role: 'user' | 'assistant'; text: string }
+type Message = { role: 'user' | 'assistant'; text: string; sources?: string[] }
 
 const SUGGESTIONS = [
   'Summarize my documents',
@@ -45,13 +46,24 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
     setStreaming(true)
 
     try {
-      await streamChat(message, (token) => {
-        setMessages((m) => {
-          const next = [...m]
-          next[next.length - 1] = { role: 'assistant', text: next[next.length - 1].text + token }
-          return next
-        })
-      })
+      await streamChat(
+        message,
+        (token) => {
+          setMessages((m) => {
+            const next = [...m]
+            const last = next[next.length - 1]
+            next[next.length - 1] = { ...last, text: last.text + token }
+            return next
+          })
+        },
+        (filenames) => {
+          setMessages((m) => {
+            const next = [...m]
+            next[next.length - 1] = { ...next[next.length - 1], sources: filenames }
+            return next
+          })
+        },
+      )
     } catch (err) {
       if (err instanceof AuthError) {
         onAuthError();
@@ -94,12 +106,20 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
               const isLast = i === messages.length - 1
               const showThinking = m.role === 'assistant' && m.text === '' && isLast && streaming
               const showCaret = m.role === 'assistant' && m.text !== '' && isLast && streaming
+              const showSources = m.role === 'assistant' && m.text !== '' && !!m.sources?.length
               return (
                 <div className={`msg ${m.role}`} key={i}>
-                  <div className="bubble">
-                    {showThinking
-                      ? <span className="thinking"><span/><span/><span/></span>
-                      : <>{renderRich(m.text)}{showCaret && <span className="caret"/>}</>}
+                  <div className="msg-body">
+                    <div className="bubble">
+                      {showThinking
+                        ? <span className="thinking"><span/><span/><span/></span>
+                        : m.role === 'assistant'
+                          ? <><Markdown text={m.text}/>{showCaret && <span className="caret"/>}</>
+                          : m.text}
+                    </div>
+                    {showSources && (
+                      <p className="sources">Based on: {m.sources!.join(' · ')}</p>
+                    )}
                   </div>
                 </div>
               )
@@ -133,22 +153,6 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
       </div>
     </main>
   )
-}
-
-/**
- * Render the few lightweight markdown marks the model tends to emit (**bold** and
- * `inline code`) as real elements, so a demo answer reads naturally instead of showing
- * raw asterisks. Newlines are preserved by the bubble's `white-space: pre-wrap`. This
- * deliberately stays tiny — no markdown dependency, and it renders via React nodes
- * (never raw HTML) so model output can't inject markup.
- */
-function renderRich(text: string) {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>
-    if (part.startsWith('`') && part.endsWith('`')) return <code key={i}
-                                                                 className="inline-code">{part.slice(1, -1)}</code>
-    return part
-  })
 }
 
 function SendIcon() {

@@ -6,8 +6,9 @@
  * streams the chat answer by parsing the SSE response by hand (the backend streams over
  * POST, which the browser `EventSource` cannot do).
  *
- * Nothing here leaks the retrieval/RAG mechanics to the UI — `sources` events are
- * silently dropped so the demo stays focused on the conversation.
+ * Nothing here leaks the retrieval/RAG mechanics to the UI — from `sources` events we
+ * surface only the document filenames an answer drew on; the chunk/distance details are
+ * dropped so the demo stays focused on the conversation.
  */
 import { basicAuthHeader, type Credentials, getCredentials } from './auth'
 
@@ -98,12 +99,14 @@ export async function addFile(
 }
 
 /**
- * Stream a chat answer. Calls `onToken` with each piece of text as it arrives and
+ * Stream a chat answer. Calls `onToken` with each piece of text as it arrives, calls
+ * `onSources` once with the (deduplicated) filenames the answer is grounded in, and
  * resolves when the stream is done.
  */
 export async function streamChat(
   message: string,
   onToken: (text: string) => void,
+  onSources?: (filenames: string[]) => void,
 ): Promise<void> {
   const creds = getCredentials()
   if (!creds) throw new AuthError('not signed in')
@@ -144,7 +147,17 @@ export async function streamChat(
 
       if (event === 'token') onToken(data)
       else if (event === 'done') return
-      // `sources` (and anything else) is intentionally ignored — kept out of the UI.
+      else if (event === 'sources') {
+        // Surface only the distinct filenames the answer drew on; the chunk index and
+        // distance carried alongside them stay out of the UI.
+        try {
+          const chunks = JSON.parse(data) as { filename: string }[]
+          const filenames = [...new Set(chunks.map((s) => s.filename))]
+          if (filenames.length) onSources?.(filenames)
+        } catch {
+          // Malformed sources payload — ignore; the answer itself still streams.
+        }
+      }
     }
   }
 }
