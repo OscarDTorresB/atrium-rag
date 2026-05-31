@@ -3,6 +3,10 @@
 *.d.ts
 node_modules
 
+# Local deploy-time env (secrets); keep the example tracked
+.env
+!.env.example
+
 # CDK asset staging directory
 .cdk.staging
 cdk.out

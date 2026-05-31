@@ -79,17 +79,27 @@ pnpm build
 
 ## Deploy
 
-CDK provisions and updates the Lambda + Function URL in one command:
+Deploy-time settings (auth credentials, model ids) live in `infra/.env`, loaded by the
+CDK app via `dotenv`. Copy the template once and fill it in:
 
 ```sh
-pnpm deploy
+cp infra/.env.example infra/.env   # set BASIC_AUTH_PASSWORD at minimum
 ```
 
-The API URL is printed as a stack output (`ApiUrl`) after a successful deploy.
+AWS credentials/region for the deploy itself are resolved by the CDK CLI, not `.env` —
+pass a named profile (or set `AWS_PROFILE`):
+
+```sh
+pnpm --filter @rag/infra exec npx cdk deploy --profile dev
+```
+
+The API URL is printed as a stack output (`ApiUrl`) after a successful deploy. The
+`pnpm deploy` script runs the same command without the profile flag (use it when AWS
+creds are already in your environment, e.g. CI).
 
 > First-time deploy requires a bootstrapped CDK environment:
 > ```sh
-> pnpm --filter @rag/infra exec npx cdk bootstrap
+> pnpm --filter @rag/infra exec npx cdk bootstrap --profile dev
 > ```
 
 ## CI/CD
