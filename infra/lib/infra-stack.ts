@@ -10,8 +10,12 @@ import { Construct } from 'constructs'
  * swap to a cheaper/larger model without touching code.
  */
 const EMBEDDING_MODEL_ID = process.env.EMBEDDING_MODEL_ID ?? 'amazon.titan-embed-text-v2:0'
-const CHAT_MODEL_ID = process.env.CHAT_MODEL_ID ?? 'anthropic.claude-haiku-4-5-20251001-v1:0'
+// Claude Haiku 4.5 must be invoked through its cross-region inference profile (us.*),
+// not the bare foundation-model id (on-demand throughput is unsupported for the bare id).
+const CHAT_MODEL_ID = process.env.CHAT_MODEL_ID ?? 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
 const EMBEDDING_DIMENSION = 1024 // Titan Embeddings v2 default
+// Regions a "us." system-defined inference profile can route requests to.
+const INFERENCE_PROFILE_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2']
 
 export class RagApiStack extends Stack {
   constructor (scope: Construct, id: string, props?: StackProps) {
@@ -130,12 +134,17 @@ export class RagApiStack extends Stack {
       resources: ['*'], // S3 Vectors ARNs are account/region-scoped; '*' is fine for a POC
     }))
 
+    // Bedrock: embeddings use a bare foundation-model ARN; the chat model is a
+    // cross-region inference profile, which needs the profile ARN PLUS the underlying
+    // foundation-model ARN in every region the profile can route to.
+    const chatBaseModelId = CHAT_MODEL_ID.replace(/^[a-z]{2}\./, '') // strip "us." prefix
     honoLambda.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
       resources: [
         `arn:aws:bedrock:${this.region}::foundation-model/${EMBEDDING_MODEL_ID}`,
-        `arn:aws:bedrock:${this.region}::foundation-model/${CHAT_MODEL_ID}`,
+        `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/${CHAT_MODEL_ID}`,
+        ...INFERENCE_PROFILE_REGIONS.map((r) => `arn:aws:bedrock:${r}::foundation-model/${chatBaseModelId}`),
       ],
     }))
 
