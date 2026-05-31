@@ -50,7 +50,11 @@ export async function* streamAnswer (question: string, contexts: string[]): Asyn
   const contextBlock = contexts.map((text, i) => `[${i + 1}] ${text}`).join('\n\n')
   const system = new SystemMessage(
     'You are a helpful assistant. Answer the question using ONLY the context below. ' +
-    'If the answer is not in the context, say you don\'t know.\n\n' +
+    'The context items are numbered [1], [2], and so on. After each statement in your ' +
+    'answer, cite the number(s) of the context item(s) that support it in square brackets, ' +
+    'e.g. "Revenue grew to $5M [2]." Cite only context that directly supports the statement; ' +
+    'do not cite a context item you did not use. ' +
+    'If the answer is not in the context, say you don\'t know and cite nothing.\n\n' +
     'Format your answer in Markdown: use ' +
     'lists for enumerations, **bold** for emphasis, and headings/tables where they aid clarity. ' +
     'Keep formatting purposeful — do not over-format plain prose.\n\n' +
@@ -65,4 +69,20 @@ export async function* streamAnswer (question: string, contexts: string[]): Asyn
       : content.map((part) => ('text' in part ? part.text : '')).join('')
     if (text) yield text
   }
+}
+
+/**
+ * The 1-based context numbers an answer cited via `[n]` markers, de-duplicated and in
+ * ascending order. Numbers outside `1..max` (a model that invents a citation) are dropped,
+ * so the caller can safely map each one back to its retrieved chunk.
+ */
+export function parseCitations (answer: string, max: number): number[] {
+  // Citation markers only count in prose — strip code so an `arr[2]` index isn't read as one.
+  const prose = answer.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '')
+  const seen = new Set<number>()
+  for (const [, digits] of prose.matchAll(/\[(\d+)\]/g)) {
+    const n = Number(digits)
+    if (n >= 1 && n <= max) seen.add(n)
+  }
+  return [...seen].sort((a, b) => a - b)
 }

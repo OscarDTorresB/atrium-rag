@@ -91,10 +91,13 @@ The docs S3 bucket has permissive **CORS (PUT/GET, all origins)** so a browser c
 the presigned PUT directly.
 
 **`/chat` SSE events** (the response is `text/event-stream`):
-- `event: sources` — once, `data` = JSON array of `{ documentId, filename, chunkIndex, distance }`
-- `event: token` — many, `data` = a piece of the answer text (concatenate them).
-  Note: a token containing a newline is split across multiple `data:` lines per the SSE
-  spec; the browser `EventSource`/parser rejoins them.
+- `event: token` — many, `data` = a piece of the answer text (concatenate them). The
+  answer cites context inline with `[n]` markers. Note: a token containing a newline is
+  split across multiple `data:` lines per the SSE spec; the browser `EventSource`/parser
+  rejoins them.
+- `event: sources` — at most once, **after** the tokens, `data` = JSON array of
+  `{ cite, documentId, filename, chunkIndex, distance }` for **only** the chunks the answer
+  cited (`cite` = the `[n]` marker number). **Omitted entirely** if the answer cited nothing.
 - `event: done` — once, end of stream.
 
 `documentId` scopes retrieval to one document; a scoped query that matches nothing

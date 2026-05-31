@@ -35,7 +35,9 @@ pnpm --filter @rag/web build       # type-checks, then outputs static assets to 
 - **Add a document** runs the three-step flow: `POST /documents` → presigned `PUT` to
   S3 → `POST /documents/:id/ingest`, surfaced as *Uploading… → Reading… → Ready*.
 - **Chat** POSTs to `/chat` and parses the SSE stream by hand (`fetch` + `ReadableStream`,
-  since `EventSource` can't POST). `token` events stream into the reply; `sources` is
-  ignored so nothing technical leaks into the UI.
+  since `EventSource` can't POST). `token` events stream into the reply; the `sources`
+  event (emitted once, after the tokens) carries the cited files and renders a "Based on:"
+  footnote line — only the filename and footnote number are surfaced, keeping retrieval
+  details out of the UI.
 
 See `src/lib/api.ts` for the typed client and `../CLAUDE.md` for the full API contract.

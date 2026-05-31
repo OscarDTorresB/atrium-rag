@@ -492,6 +492,14 @@ input { font-family: inherit; }
   word-break: break-word;
 }
 
+/* inline citation footnote reference, e.g. ^[1] */
+.cite-ref {
+  color: var(--azure);
+  font-weight: 600;
+  font-size: 0.7em;
+  padding-left: 1px;
+}
+
 /* streaming caret */
 .caret {
   display: inline-block;

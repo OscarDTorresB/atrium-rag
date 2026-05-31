@@ -27,10 +27,13 @@ export function Markdown({ text }: { text: string }) {
           code: ({ className, children }) => (
             <code className={className ?? 'inline-code'}>{children}</code>
           ),
-          // Open links in a new tab; react-markdown already blocks unsafe URLs.
-          a: ({ children, href }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-          ),
+          // A `#cite-n` fragment link is a citation footnote (see lib/citations.ts) —
+          // render it as a superscript reference, e.g. ^[1]. Any other link opens in a new
+          // tab; react-markdown already blocks unsafe URLs.
+          a: ({ children, href }) =>
+            href?.startsWith('#cite-')
+              ? <sup className="cite-ref">[{children}]</sup>
+              : <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
         }}
       >
         {text}

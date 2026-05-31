@@ -7,8 +7,8 @@
  * POST, which the browser `EventSource` cannot do).
  *
  * Nothing here leaks the retrieval/RAG mechanics to the UI — from `sources` events we
- * surface only the document filenames an answer drew on; the chunk/distance details are
- * dropped so the demo stays focused on the conversation.
+ * surface the footnote number (`cite`) and document filename an answer drew on; the
+ * chunk/distance details are dropped so the demo stays focused on the conversation.
  */
 import { basicAuthHeader, type Credentials, getCredentials } from './auth'
 
@@ -22,6 +22,9 @@ export type DocumentSummary = {
   chunkCount: number
   ingestedAt: string
 }
+
+/** One cited chunk: the `[n]` footnote number in the answer and the file it came from. */
+export type Source = { cite: number; filename: string }
 
 /** Wrap fetch with the stored Basic Auth header and uniform 401 handling. */
 async function authed(path: string, init: RequestInit = {}): Promise<Response> {
@@ -100,13 +103,13 @@ export async function addFile(
 
 /**
  * Stream a chat answer. Calls `onToken` with each piece of text as it arrives, calls
- * `onSources` once with the (deduplicated) filenames the answer is grounded in, and
- * resolves when the stream is done.
+ * `onSources` once (after the tokens) with the cited chunks the answer is grounded in,
+ * and resolves when the stream is done. `onSources` may never fire if nothing was cited.
  */
 export async function streamChat(
   message: string,
   onToken: (text: string) => void,
-  onSources?: (filenames: string[]) => void,
+  onSources?: (sources: Source[]) => void,
 ): Promise<void> {
   const creds = getCredentials()
   if (!creds) throw new AuthError('not signed in')
@@ -148,12 +151,11 @@ export async function streamChat(
       if (event === 'token') onToken(data)
       else if (event === 'done') return
       else if (event === 'sources') {
-        // Surface only the distinct filenames the answer drew on; the chunk index and
-        // distance carried alongside them stay out of the UI.
+        // Surface the footnote number + filename for each cited chunk; the chunk's own
+        // index and distance carried alongside them stay out of the UI.
         try {
-          const chunks = JSON.parse(data) as { filename: string }[]
-          const filenames = [...new Set(chunks.map((s) => s.filename))]
-          if (filenames.length) onSources?.(filenames)
+          const sources = JSON.parse(data) as Source[]
+          if (sources.length) onSources?.(sources)
         } catch {
           // Malformed sources payload — ignore; the answer itself still streams.
         }

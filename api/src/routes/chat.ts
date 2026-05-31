@@ -6,13 +6,14 @@
  * document) -> stream Claude's answer grounded in those chunks via Server-Sent Events.
  *
  * SSE events emitted:
- *   `sources` once — the retrieved chunks used as context
- *   `token` many — answer text as it is generated
+ *   `token` many — answer text as it is generated (streamed first)
+ *   `sources` at most once, after the tokens — only the chunks the answer actually cited
+ *     via `[n]` markers, each tagged with its `cite` number; omitted if nothing was cited
  *   `done` once — end of stream
  */
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import { embedQuery, streamAnswer } from '../lib/rag'
+import { embedQuery, parseCitations, streamAnswer } from '../lib/rag'
 import { queryVectors } from '../lib/vectors'
 
 export const chat = new Hono()
@@ -39,18 +40,29 @@ chat.post('/', async (c) => {
   }
 
   return streamSSE(c, async (stream) => {
-    await stream.writeSSE({
-      event: 'sources',
-      data: JSON.stringify(matches.map((m) => ({
-        documentId: m.documentId,
-        filename: m.filename,
-        chunkIndex: m.chunkIndex,
-        distance: m.distance,
-      }))),
-    })
-
+    let answer = ''
     for await (const token of streamAnswer(message, matches.map((m) => m.text))) {
+      answer += token
       await stream.writeSSE({ event: 'token', data: token })
+    }
+
+    // Surface only the chunks the answer cited (`[n]` → the n-th retrieved chunk), each
+    // tagged with its `cite` number so the UI can tie a footnote back to its document.
+    const cited = parseCitations(answer, matches.length)
+    if (cited.length) {
+      await stream.writeSSE({
+        event: 'sources',
+        data: JSON.stringify(cited.map((n) => {
+          const m = matches[n - 1]
+          return {
+            cite: n,
+            documentId: m.documentId,
+            filename: m.filename,
+            chunkIndex: m.chunkIndex,
+            distance: m.distance,
+          }
+        })),
+      })
     }
 
     await stream.writeSSE({ event: 'done', data: '' })

@@ -6,10 +6,11 @@
  * the streamed reply, keeping the experience focused on the conversation.
  */
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import { AuthError, streamChat } from '../lib/api'
+import { AuthError, type Source, streamChat } from '../lib/api'
+import { annotateCitations } from '../lib/citations'
 import { Markdown } from './Markdown'
 
-type Message = { role: 'user' | 'assistant'; text: string; sources?: string[] }
+type Message = { role: 'user' | 'assistant'; text: string; sources?: Source[] }
 
 const SUGGESTIONS = [
   'Summarize my documents',
@@ -56,10 +57,10 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
             return next
           })
         },
-        (filenames) => {
+        (sources) => {
           setMessages((m) => {
             const next = [...m]
-            next[next.length - 1] = { ...next[next.length - 1], sources: filenames }
+            next[next.length - 1] = { ...next[next.length - 1], sources }
             return next
           })
         },
@@ -106,19 +107,23 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
               const isLast = i === messages.length - 1
               const showThinking = m.role === 'assistant' && m.text === '' && isLast && streaming
               const showCaret = m.role === 'assistant' && m.text !== '' && isLast && streaming
-              const showSources = m.role === 'assistant' && m.text !== '' && !!m.sources?.length
+              // Renumber the answer's citation markers and group their sources by file.
+              const cited = m.role === 'assistant' ? annotateCitations(m.text, m.sources ?? []) : null
+              const showSources = m.text !== '' && !!cited?.files.length
               return (
                 <div className={`msg ${m.role}`} key={i}>
                   <div className="msg-body">
                     <div className="bubble">
                       {showThinking
                         ? <span className="thinking"><span/><span/><span/></span>
-                        : m.role === 'assistant'
-                          ? <><Markdown text={m.text}/>{showCaret && <span className="caret"/>}</>
+                        : cited
+                          ? <><Markdown text={cited.text}/>{showCaret && <span className="caret"/>}</>
                           : m.text}
                     </div>
                     {showSources && (
-                      <p className="sources">Based on: {m.sources!.join(' · ')}</p>
+                      <p className="sources">Based on: {cited!.files
+                        .map((f) => `${f.filename} ${f.numbers.map((n) => `[${n}]`).join(' ')}`)
+                        .join(' · ')}</p>
                     )}
                   </div>
                 </div>
