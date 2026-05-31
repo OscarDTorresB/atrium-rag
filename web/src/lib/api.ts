@@ -99,12 +99,11 @@ export async function addFile(
 
 /**
  * Stream a chat answer. Calls `onToken` with each piece of text as it arrives and
- * resolves when the stream is done. Pass an `AbortSignal` to cancel mid-answer.
+ * resolves when the stream is done.
  */
 export async function streamChat(
   message: string,
   onToken: (text: string) => void,
-  signal?: AbortSignal,
 ): Promise<void> {
   const creds = getCredentials()
   if (!creds) throw new AuthError('not signed in')
@@ -113,7 +112,6 @@ export async function streamChat(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: basicAuthHeader(creds) },
     body: JSON.stringify({ message }),
-    signal,
   })
   if (res.status === 401) throw new AuthError('invalid credentials')
   if (res.status === 404) throw new Error('There is nothing in your library to answer from yet.')

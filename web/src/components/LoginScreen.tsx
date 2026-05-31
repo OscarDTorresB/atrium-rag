@@ -4,10 +4,10 @@
  * first action inside the app.
  */
 import { type FormEvent, useState } from 'react'
-import { type Credentials, setCredentials } from '../lib/auth'
+import { setCredentials } from '../lib/auth'
 import { verifyCredentials } from '../lib/api'
 
-export function LoginScreen({ onSignedIn }: { onSignedIn: (creds: Credentials) => void }) {
+export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +25,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: (creds: Credentials) =
         return
       }
       setCredentials(creds)
-      onSignedIn(creds)
+      onSignedIn()
     } catch {
       setError('Couldn’t reach the service. Check your connection and try again.')
     } finally {

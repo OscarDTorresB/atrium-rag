@@ -75,9 +75,6 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
     }
   }
 
-  const lastIsStreamingAssistant =
-    streaming && messages.length > 0 && messages[messages.length - 1].role === 'assistant'
-
   return (
     <main className="chat">
       <div className="thread" ref={threadRef}>
@@ -96,7 +93,7 @@ export function Chat({ onAuthError }: { onAuthError: () => void }) {
             {messages.map((m, i) => {
               const isLast = i === messages.length - 1
               const showThinking = m.role === 'assistant' && m.text === '' && isLast && streaming
-              const showCaret = m.role === 'assistant' && m.text !== '' && isLast && lastIsStreamingAssistant
+              const showCaret = m.role === 'assistant' && m.text !== '' && isLast && streaming
               return (
                 <div className={`msg ${m.role}`} key={i}>
                   <div className="bubble">
